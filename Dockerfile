@@ -55,11 +55,11 @@ RUN cd /caffe && \
 
 ENV PYTHONPATH=/caffe/python
 WORKDIR /ddd
-
 COPY deepdreams.py /ddd/
 COPY ddd.go /go/src/ddd/ddd.go
-RUN go install ddd
+RUN go get ddd
 RUN mkdir /images
 
+ENV GOMAXPROCS=32
 EXPOSE 8080
 ENTRYPOINT ["/go/bin/ddd"]

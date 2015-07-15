@@ -11,7 +11,7 @@ import caffe
 def showarray(a, title, fmt='png'):
 	a = np.uint8(np.clip(a, 0, 255))
 	#f = StringIO()
-	name = '/images/' + title + '.' + fmt
+	name = title + '.' + fmt
 	Image.fromarray(a).save(name, fmt)
 	print name
 
@@ -83,7 +83,7 @@ def deepdream(net, base_img, end, iter_n=10, octave_n=4, octave_scale=1.4, clip=
 			if not clip: # adjust image contrast if clipping is disabled
 				vis = vis*(255.0/np.percentile(vis, 99.98))
 			ename = '-'.join(end.split('/'))
-			showarray(vis, '{}-{}-{}'.format(ename, octave, i))
+			showarray(vis, 'frame-%s-%s-%08d' % (ename, octave, i))
 			#print octave, i, end, vis.shape
 			clear_output(wait=True)
 
@@ -97,19 +97,7 @@ import StringIO
 img = np.float32(Image.open(StringIO.StringIO(data)))
 
 end = 'inception_4d/pool'
-if len(sys.argv) >= 2:
-	end = sys.argv[1]
-
 iter_n = 10
-if len(sys.argv) >= 3:
-	iter_n = int(sys.argv[2])
-
 octave_n = 4
-if len(sys.argv) >= 4:
-	octave_n = int(sys.argv[3])
-
 octave_scale = 1.4
-if len(sys.argv) >= 5:
-	octave_scale = float(sys.argv[4])
-
 _=deepdream(net, img, end, iter_n, octave_n, octave_scale)
