@@ -1,4 +1,4 @@
-FROM debian
+FROM golang
 
 RUN apt-get clean && apt-get update && apt-get install -y \
 	bc \
@@ -42,21 +42,24 @@ RUN curl https://bootstrap.pypa.io/get-pip.py | python
 
 RUN pip install scikit-image
 
-RUN cd root && git clone --depth 1 --single-branch https://github.com/BVLC/caffe.git
+RUN git clone --depth 1 --single-branch https://github.com/BVLC/caffe.git /caffe
 
-RUN curl http://dl.caffe.berkeleyvision.org/bvlc_googlenet.caffemodel > /root/caffe/models/bvlc_googlenet/bvlc_googlenet.caffemodel
+RUN curl http://dl.caffe.berkeleyvision.org/bvlc_googlenet.caffemodel > /caffe/models/bvlc_googlenet/bvlc_googlenet.caffemodel
 
-RUN cd /root/caffe && \
+RUN cd /caffe && \
 	cp Makefile.config.example Makefile.config && \
 	sed -i 's/# CPU_ONLY/CPU_ONLY/g' Makefile.config && \
 	echo 'INCLUDE_DIRS += /usr/include/hdf5/serial' >> Makefile.config && \
 	echo 'LIBRARY_DIRS += /usr/lib/x86_64-linux-gnu/hdf5/serial' >> Makefile.config && \
 	make -j"$(nproc)" all pycaffe
 
-ENV PYTHONPATH=/root/caffe/python
+ENV PYTHONPATH=/caffe/python
 WORKDIR /ddd
 
-COPY start.sh /ddd/
 COPY deepdreams.py /ddd/
+COPY ddd.go /go/src/ddd/ddd.go
+RUN go install ddd
+RUN mkdir /images
 
-ENTRYPOINT ["/ddd/start.sh"]
+EXPOSE 8080
+ENTRYPOINT ["/go/bin/ddd"]
