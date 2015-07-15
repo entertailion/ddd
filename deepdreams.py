@@ -2,8 +2,8 @@
 import numpy as np
 import scipy.ndimage as nd
 import sys
-import PIL.Image
-from IPython.display import clear_output, Image, display
+from PIL import Image
+from IPython.display import clear_output, display
 from google.protobuf import text_format
 
 import caffe
@@ -12,11 +12,10 @@ def showarray(a, title, fmt='png'):
 	a = np.uint8(np.clip(a, 0, 255))
 	#f = StringIO()
 	name = '/images/' + title + '.' + fmt
-	PIL.Image.fromarray(a).save(name, fmt)
+	Image.fromarray(a).save(name, fmt)
 	print name
-	#display(Image(data=f.getvalue()))
 
-model_path = '/root/caffe/models/bvlc_googlenet/' # substitute your path here
+model_path = '/caffe/models/bvlc_googlenet/' # substitute your path here
 net_fn   = model_path + 'deploy.prototxt'
 param_fn = model_path + 'bvlc_googlenet.caffemodel'
 
@@ -95,7 +94,7 @@ def deepdream(net, base_img, end, iter_n=10, octave_n=4, octave_scale=1.4, clip=
 
 data = sys.stdin.read()
 import StringIO
-img = np.float32(PIL.Image.open(StringIO.StringIO(data)))
+img = np.float32(Image.open(StringIO.StringIO(data)))
 
 end = 'inception_4d/pool'
 if len(sys.argv) >= 2:
