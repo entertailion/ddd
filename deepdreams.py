@@ -85,7 +85,7 @@ def deepdream(net, base_img, end, iter_n=10, octave_n=4, octave_scale=1.4, clip=
 				vis = vis*(255.0/np.percentile(vis, 99.98))
 			ename = '-'.join(end.split('/'))
 			showarray(vis, '{}-{}-{}'.format(ename, octave, i))
-			print octave, i, end, vis.shape
+			#print octave, i, end, vis.shape
 			clear_output(wait=True)
 
 		# extract details produced on the current octave
@@ -93,9 +93,11 @@ def deepdream(net, base_img, end, iter_n=10, octave_n=4, octave_scale=1.4, clip=
 	# returning the resulting image
 	return deprocess(net, src.data[0])
 
-img = np.float32(PIL.Image.open('img.jpg'))
+data = sys.stdin.read()
+import StringIO
+img = np.float32(PIL.Image.open(StringIO.StringIO(data)))
 
-end = 'inception_4c/output'
+end = 'inception_4d/pool'
 if len(sys.argv) >= 2:
 	end = sys.argv[1]
 
