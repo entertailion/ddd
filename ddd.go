@@ -93,74 +93,47 @@ func init() {
 			return
 		}
 		defer dir.Close()
-		frames, err := dir.Readdir(-1)
+		files, err := dir.Readdir(-1)
 		if err != nil {
 			log.Printf("error reading dream %q: %v", dream, err)
 			http.Error(w, fmt.Sprintf("error reading dream: %v", err.Error()), http.StatusNotFound)
 			return
 		}
-		sort.Sort(ByCreation(frames))
 
-		if ext == ".gif" {
-			g := &gif.GIF{}
-			cs := []chan *image.Paletted{}
-			for _, f := range frames {
-				fname := f.Name()
-				if !strings.HasPrefix(fname, "frame-") || filepath.Ext(fname) != ".png" {
-					continue
-				}
-				log.Printf("encoding: %q", fname)
-				c := make(chan *image.Paletted)
-				cs = append(cs, c)
-				go func(frame string) {
-					f, err := os.Open(filepath.Join(dir.Name(), frame))
-					if err != nil {
-						log.Printf("error reading dream %q frame %q: %v", dream, frame, err)
-						c <- nil
-						return
-					}
-					defer f.Close()
-					img, err := png.Decode(f)
-					if err != nil {
-						log.Printf("error decoding dream %q frame %q: %v", dream, frame, err)
-						c <- nil
-						return
-					}
-					resized := resize.Resize(512, 0, img, resize.Lanczos3)
-					c <- ImageToPaletted(resized)
-					close(c)
-				}(fname)
-			}
-			for i, c := range cs {
-				img := <-c
-				log.Printf("decoded frame: %d", i)
-				if img == nil {
-					http.Error(w, fmt.Sprintf("error decoding dream frame: %v", err.Error()), http.StatusInternalServerError)
-					return
-				}
-				g.Image = append(g.Image, img)
-				g.Delay = append(g.Delay, 20)
-			}
-			if err := gif.EncodeAll(w, g); err != nil {
-				log.Printf("error encoding dream: %v", dream, err)
-				http.Error(w, fmt.Sprintf("error encoding dream: %v", err.Error()), http.StatusInternalServerError)
-			}
-			return
-		}
-
-		var lastFrame = ""
-		for i, f := range frames {
-			log.Printf("frames %d: %q", i, f)
+		frames := []os.FileInfo{}
+		for i, f := range files {
 			fname := f.Name()
-			if strings.HasPrefix(fname, "frame-") && filepath.Ext(fname) == ".png" {
-				lastFrame = fname
+			if !strings.HasPrefix(fname, "frame-") || filepath.Ext(fname) != ".png" {
+				continue
 			}
+			log.Printf("frames %d: %q", i, fname)
+			frames = append(frames, f)
 		}
-		if lastFrame == "" {
+
+		if len(frames) == 0 {
 			log.Printf("empty dream: %q", dream)
 			http.Error(w, fmt.Sprintf("empty dream: %q", dream), http.StatusNotFound)
 			return
 		}
+
+		sort.Sort(ByCreation(frames))
+
+		if ext == ".gif" {
+			g, err := renderGIF(dir, frames)
+			if err != nil {
+				log.Printf("error rendering dream: %v", dream, err)
+				http.Error(w, fmt.Sprintf("error rendering dream: %v", err.Error()), http.StatusInternalServerError)
+				return
+			}
+			if err := gif.EncodeAll(w, g); err != nil {
+				log.Printf("error encoding dream: %v", dream, err)
+				http.Error(w, fmt.Sprintf("error encoding dream: %v", err.Error()), http.StatusInternalServerError)
+				return
+			}
+			return
+		}
+
+		var lastFrame = frames[len(frames)-1].Name()
 		f, err := os.Open(filepath.Join(dir.Name(), lastFrame))
 		if err != nil {
 			log.Printf("error opening dream frame %q: %v", lastFrame, err)
@@ -183,6 +156,45 @@ func ImageToPaletted(img image.Image) *image.Paletted {
 		q.Quantize(pm, b, img, image.ZP)
 	}
 	return pm
+}
+
+func renderGIF(dir *os.File, frames []os.FileInfo) (*gif.GIF, error) {
+	g := &gif.GIF{}
+	cs := []chan *image.Paletted{}
+	for _, f := range frames {
+		fname := f.Name()
+		log.Printf("encoding: %q", fname)
+		c := make(chan *image.Paletted)
+		cs = append(cs, c)
+		go func(frame string) {
+			f, err := os.Open(filepath.Join(dir.Name(), frame))
+			if err != nil {
+				log.Printf("error reading frame %q from %q: %v", frame, dir.Name(), err)
+				c <- nil
+				return
+			}
+			defer f.Close()
+			img, err := png.Decode(f)
+			if err != nil {
+				log.Printf("error decoding frame %q from %q: %v", frame, dir.Name(), err)
+				c <- nil
+				return
+			}
+			resized := resize.Resize(512, 0, img, resize.Lanczos3)
+			c <- ImageToPaletted(resized)
+			close(c)
+		}(fname)
+	}
+	for i, c := range cs {
+		img := <-c
+		log.Printf("decoded frame: %d", i)
+		if img == nil {
+			return nil, fmt.Errorf("error decoding dream frame: %v", i)
+		}
+		g.Image = append(g.Image, img)
+		g.Delay = append(g.Delay, 20)
+	}
+	return g, nil
 }
 
 type ByCreation []os.FileInfo
