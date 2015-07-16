@@ -97,7 +97,9 @@ import StringIO
 img = np.float32(Image.open(StringIO.StringIO(data)))
 
 end = 'inception_4d/pool'
-iter_n = 10
-octave_n = 4
-octave_scale = 1.4
-_=deepdream(net, img, end, iter_n, octave_n, octave_scale)
+iter_n = 4
+octave_n = 2
+octave_scale = 2.0
+jitter = 100
+step_size = 10.0
+_=deepdream(net, img, end, iter_n, octave_n, octave_scale, jitter=jitter, step_size=step_size)
